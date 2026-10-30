@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -182,6 +183,110 @@ class OrderServiceTest {
     }
 
     @Test
+    void reconcilesSuccessfulPaymentWhenLoadingOrderDetails() {
+        Order order = pendingOrderForRead();
+        when(orderRepository.findById(42L)).thenReturn(Optional.of(order));
+        when(restTemplate.getForObject(anyString(), eq(PaymentResponseDTO[].class)))
+                .thenReturn(new PaymentResponseDTO[] { paymentForOrder("SUCCESS") });
+
+        var response = orderService.getOrderById(42L, 3L);
+
+        assertThat(response.getStatus()).isEqualTo("CONFIRMED");
+        assertThat(order.getStatus()).isEqualTo("CONFIRMED");
+        verify(orderRepository).save(order);
+        verify(restTemplate).getForObject(
+                eq("http://PAYMENT-SERVICE/payments/order/42"),
+                eq(PaymentResponseDTO[].class));
+    }
+
+    @Test
+    void reconcilesSuccessfulPaymentWhenLoadingMyOrders() {
+        Order order = pendingOrderForRead();
+        when(orderRepository.findByCustomerId(3L)).thenReturn(List.of(order));
+        when(restTemplate.getForObject(anyString(), eq(PaymentResponseDTO[].class)))
+                .thenReturn(new PaymentResponseDTO[] { paymentForOrder("SUCCESS") });
+
+        var responses = orderService.getOrdersByUser(3L);
+
+        assertThat(responses).singleElement()
+                .extracting(response -> response.getStatus())
+                .isEqualTo("CONFIRMED");
+        verify(orderRepository).save(order);
+    }
+
+    @Test
+    void leavesOrderPendingWhenMatchingPaymentIsPending() {
+        Order order = pendingOrderForRead();
+        when(orderRepository.findById(42L)).thenReturn(Optional.of(order));
+        when(restTemplate.getForObject(anyString(), eq(PaymentResponseDTO[].class)))
+                .thenReturn(new PaymentResponseDTO[] { paymentForOrder("PENDING") });
+
+        var response = orderService.getOrderById(42L, 3L);
+
+        assertThat(response.getStatus()).isEqualTo("PAYMENT_PENDING");
+        verify(orderRepository, never()).save(any(Order.class));
+    }
+
+    @Test
+    void reconcilesFailedPaymentWithoutReportingConfirmation() {
+        Order order = pendingOrderForRead();
+        when(orderRepository.findById(42L)).thenReturn(Optional.of(order));
+        when(restTemplate.getForObject(anyString(), eq(PaymentResponseDTO[].class)))
+                .thenReturn(new PaymentResponseDTO[] { paymentForOrder("FAILED") });
+
+        var response = orderService.getOrderById(42L, 3L);
+
+        assertThat(response.getStatus()).isEqualTo("PAYMENT_FAILED");
+        verify(orderRepository).save(order);
+    }
+
+    @Test
+    void rejectsPaymentWithMismatchedOrderIdOrCustomerOrAmount() {
+        Order order = pendingOrderForRead();
+        when(orderRepository.findById(42L)).thenReturn(Optional.of(order));
+
+        PaymentResponseDTO mismatchedOrder = paymentForOrder("SUCCESS");
+        mismatchedOrder.setOrderId(43L);
+        when(restTemplate.getForObject(anyString(), eq(PaymentResponseDTO[].class)))
+                .thenReturn(new PaymentResponseDTO[] { mismatchedOrder });
+        assertUnverifiedPayment(order);
+
+        PaymentResponseDTO mismatchedCustomer = paymentForOrder("SUCCESS");
+        mismatchedCustomer.setUserId(4L);
+        when(restTemplate.getForObject(anyString(), eq(PaymentResponseDTO[].class)))
+                .thenReturn(new PaymentResponseDTO[] { mismatchedCustomer });
+        assertUnverifiedPayment(order);
+
+        PaymentResponseDTO mismatchedAmount = paymentForOrder("SUCCESS");
+        mismatchedAmount.setAmount(24.99);
+        when(restTemplate.getForObject(anyString(), eq(PaymentResponseDTO[].class)))
+                .thenReturn(new PaymentResponseDTO[] { mismatchedAmount });
+        assertUnverifiedPayment(order);
+
+        assertThat(order.getStatus()).isEqualTo("PAYMENT_PENDING");
+        verify(orderRepository, never()).save(any(Order.class));
+    }
+
+    @Test
+    void repeatedOrderReadsReconcileOnlyOnceAfterPaymentIsConfirmed() {
+        Order order = pendingOrderForRead();
+        when(orderRepository.findById(42L)).thenReturn(Optional.of(order));
+        when(restTemplate.getForObject(anyString(), eq(PaymentResponseDTO[].class)))
+                .thenReturn(new PaymentResponseDTO[] { paymentForOrder("SUCCESS") });
+
+        var firstResponse = orderService.getOrderById(42L, 3L);
+        var secondResponse = orderService.getOrderById(42L, 3L);
+
+        assertThat(firstResponse.getStatus()).isEqualTo("CONFIRMED");
+        assertThat(secondResponse.getStatus()).isEqualTo("CONFIRMED");
+        verify(restTemplate, times(1)).getForObject(
+                eq("http://PAYMENT-SERVICE/payments/order/42"),
+                eq(PaymentResponseDTO[].class));
+        verify(orderRepository, times(1)).save(order);
+        verify(orderRepository, never()).saveAndFlush(any(Order.class));
+    }
+
+    @Test
     void rejectsNonPositiveOrderQuantitiesBeforeCallingOtherServices() {
         OrderRequestDTO request = orderRequest();
         request.getItems().getFirst().setQuantity(0);
@@ -243,6 +348,33 @@ class OrderServiceTest {
         menuItem.setAvailable(true);
         when(restTemplate.getForObject(anyString(), eq(RestaurantMenuItemDTO[].class)))
                 .thenReturn(new RestaurantMenuItemDTO[] { menuItem });
+    }
+
+    private Order pendingOrderForRead() {
+        Order order = new Order();
+        order.setId(42L);
+        order.setUserId(3L);
+        order.setCustomerId(3L);
+        order.setTotalAmount(25.0);
+        order.setStatus("PAYMENT_PENDING");
+        return order;
+    }
+
+    private PaymentResponseDTO paymentForOrder(String status) {
+        PaymentResponseDTO payment = new PaymentResponseDTO();
+        payment.setOrderId(42L);
+        payment.setUserId(3L);
+        payment.setAmount(25.0);
+        payment.setStatus(status);
+        return payment;
+    }
+
+    private void assertUnverifiedPayment(Order order) {
+        assertThatThrownBy(() -> orderService.getOrderById(42L, 3L))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting(exception -> ((ResponseStatusException) exception).getStatusCode())
+                .isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(order.getStatus()).isEqualTo("PAYMENT_PENDING");
     }
 
     private OrderRequestDTO orderRequest() {

@@ -147,12 +147,16 @@ public class OrderService {
                 .filter(candidate -> customerIdEquals(candidate, customerId))
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Order not found"));
+        reconcileIfPending(order);
         return convertToResponse(order);
     }
 
     public List<OrderResponseDTO> getOrdersByUser(long customerId) {
         return orderRepository.findByCustomerId(customerId).stream()
-                .map(this::convertToResponse)
+                .map(order -> {
+                    reconcileIfPending(order);
+                    return convertToResponse(order);
+                })
                 .toList();
     }
 
@@ -224,10 +228,21 @@ public class OrderService {
         }
     }
 
+    private void reconcileIfPending(Order order) {
+        if ("PAYMENT_PENDING".equals(order.getStatus())) {
+            reconcilePayment(order);
+        }
+    }
+
     private void updateOrderFromPayment(Order order, PaymentResponseDTO payment) {
         if (payment == null
+                || order.getId() == null
                 || !order.getId().equals(payment.getOrderId())
-                || !order.getUserId().equals(payment.getUserId())
+                || order.getCustomerId() == null
+                || !order.getCustomerId().equals(order.getUserId())
+                || !order.getCustomerId().equals(payment.getUserId())
+                || !Double.isFinite(order.getTotalAmount())
+                || !Double.isFinite(payment.getAmount())
                 || Double.compare(order.getTotalAmount(), payment.getAmount()) != 0) {
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE, "Payment outcome could not be verified");

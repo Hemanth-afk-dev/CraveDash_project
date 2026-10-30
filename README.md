@@ -28,17 +28,74 @@ Set environment variables in the process environment; do not commit secrets:
 | Variable | Used by | Purpose |
 | --- | --- | --- |
 | `JWT_SECRET` | Gateway and all business services | Shared HS256 secret, at least 32 UTF-8 bytes |
-| `DB_USERNAME` | User Service | MySQL user; defaults to `root` |
-| `DB_PASSWORD` | Business services | MySQL password |
-| `USER_DB_URL` | User Service | Defaults to `jdbc:mysql://localhost:3306/cravedash_user_db` |
-| `EUREKA_URL` | User Service | Defaults to `http://localhost:8761/eureka/` |
+| `MYSQL_ROOT_PASSWORD` | Docker Compose | MySQL administrative password |
+| `DB_USERNAME` | Business services | MySQL application user; defaults to `root` for local runs |
+| `DB_PASSWORD` | Business services | MySQL application-user password |
+| `SPRING_DATASOURCE_URL` | Business services | Overrides the module's local MySQL URL |
+| `EUREKA_URL` | Gateway and business services | Eureka registry URL; Docker uses `http://eureka-server:8761/eureka/` |
+| `EUREKA_INSTANCE_HOSTNAME` | Gateway and business services | Hostname advertised to Eureka |
 | `REACT_APP_ORIGIN` | API Gateway | Allowed frontend origin; defaults to `http://localhost:5173` |
 | `VITE_API_BASE_URL` | Frontend build/dev server | Defaults to `http://localhost:8080` |
 
-Provision the `cravedash_user_db` schema before starting User Service. The other
-schemas are `cravedash_order_db`, `cravedash_payment_db`, and
-`cravedash_restaurant_db`. Configure the DB URL/user in each existing service's
-`application.properties` if its local MySQL setup differs.
+The services use separate schemas: `cravedash_user_db`, `cravedash_order_db`,
+`cravedash_payment_db`, and `cravedash_restaurant_db`. For local runs, provision
+them before starting the services. Docker Compose creates them on the first
+MySQL-volume initialization.
+
+## Run the complete application with Docker Compose
+
+Requirements: Docker Desktop (or Docker Engine with the Compose plugin) and
+network access to pull the build/runtime images and Maven/npm dependencies.
+
+1. Copy `.env.example` to `.env`.
+2. Replace the three password/secret placeholders with private values. Use the
+   same `JWT_SECRET` for every service; it must contain at least 32 UTF-8 bytes.
+   The `.env` file is ignored by Git.
+3. From the repository root, run:
+
+   ```powershell
+   docker compose up --build -d
+   ```
+
+Compose builds all six Spring Boot services and the production Vite/Nginx
+frontend. It waits for MySQL, Eureka, and backend service health checks before
+starting dependent services. The services share a private Docker bridge
+network; only the frontend, API Gateway, and Eureka dashboard ports are
+published to the host. MySQL's port is not published.
+
+Open `http://localhost:5173`. The browser uses the API Gateway at
+`http://localhost:8080`; backend containers communicate through Compose service
+names and Eureka. If you change the frontend or gateway host ports in `.env`,
+also set `REACT_APP_ORIGIN` to the frontend origin and rebuild with
+`docker compose up --build -d`.
+
+Useful commands:
+
+```powershell
+docker compose ps
+docker compose logs -f
+docker compose logs -f api-gateway user-service restaurant-service
+docker compose down
+```
+
+`docker compose down` stops and removes containers but keeps the named MySQL
+volume. To permanently remove the local database contents as well, run
+`docker compose down --volumes`; this is destructive and should only be used
+when you intend to reset the local Docker database.
+
+Troubleshooting:
+
+- If a service is unhealthy, inspect its logs with
+  `docker compose logs <service-name>` and confirm Docker has enough memory.
+- Check `.env` values if Compose reports a missing/weak configuration value.
+- If a host port is already in use, change its port variable in `.env`. Update
+  `REACT_APP_ORIGIN` and `VITE_API_BASE_URL` to match, then rebuild the frontend.
+- MySQL initialization scripts run only when the data volume is first created.
+  Changing credentials later does not rewrite an existing database volume.
+- A new Docker volume contains empty application schemas. Existing local
+  restaurant/menu/customer/order/payment records are not included in Git and
+  are not copied automatically; restore or create only the records you intend
+  to use in this isolated Docker database.
 
 Order Service adds nullable `customer_id` and `idempotency_key` columns.
 Payment Service adds nullable `customer_id` and a unique constraint on
@@ -65,8 +122,9 @@ legacy numeric IDs to new accounts is safe.
 
 ## Start the application (Windows PowerShell)
 
-Set the same strong `JWT_SECRET` in every service process, then start each
-component in a separate terminal, in this order:
+Set the same strong `JWT_SECRET` and the matching `DB_PASSWORD` in every
+business-service process, then start each component in a separate terminal, in
+this order:
 
 1. `eureka-server\eureka-server`
 2. `restaurant-service\restaurant-service`
