@@ -2,20 +2,24 @@ package com.cravedash.orderservice.dto;
 
 import java.util.List;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+
 public class OrderRequestDTO {
 
-    private Long userId;
+    @NotNull
+    @Positive
     private Long restaurantId;
+
+    @NotEmpty
+    @Valid
     private List<OrderItemDTO> items;
+
+    @NotBlank
     private String paymentMethod;
-
-    public Long getUserId() {
-        return userId;
-    }
-
-    public void setUserId(Long userId) {
-        this.userId = userId;
-    }
 
     public Long getRestaurantId() {
         return restaurantId;

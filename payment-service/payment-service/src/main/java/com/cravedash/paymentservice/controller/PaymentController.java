@@ -5,6 +5,11 @@ import com.cravedash.paymentservice.dto.PaymentResponseDTO;
 import com.cravedash.paymentservice.service.PaymentService;
 
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -20,29 +25,44 @@ public class PaymentController {
 
     @PostMapping
     public PaymentResponseDTO processPayment(
-            @RequestBody PaymentRequestDTO request) {
+            @Valid @RequestBody PaymentRequestDTO request,
+            @AuthenticationPrincipal Jwt jwt) {
 
-        return paymentService.processPayment(request);
+        return paymentService.processPayment(request, customerId(jwt));
     }
 
     @GetMapping("/{id}")
     public PaymentResponseDTO getPayment(
-            @PathVariable Long id) {
+            @PathVariable Long id,
+            @AuthenticationPrincipal Jwt jwt) {
 
-        return paymentService.getPaymentById(id);
+        return paymentService.getPaymentById(id, customerId(jwt));
     }
 
     @GetMapping("/order/{orderId}")
     public List<PaymentResponseDTO> getPaymentsByOrder(
-            @PathVariable Long orderId) {
+            @PathVariable Long orderId,
+            @AuthenticationPrincipal Jwt jwt) {
 
-        return paymentService.getPaymentsByOrder(orderId);
+        return paymentService.getPaymentsByOrder(orderId, customerId(jwt));
     }
 
     @GetMapping("/user/{userId}")
     public List<PaymentResponseDTO> getPaymentsByUser(
-            @PathVariable Long userId) {
+            @PathVariable Long userId,
+            @AuthenticationPrincipal Jwt jwt) {
 
-        return paymentService.getPaymentsByUser(userId);
+        return paymentService.getPaymentsByUser(userId, customerId(jwt));
+    }
+
+    private long customerId(Jwt jwt) {
+        Object claim = jwt.getClaim("customerId");
+        Object role = jwt.getClaim("role");
+        if (!(claim instanceof Number id) || id.longValue() <= 0
+                || !"CUSTOMER".equals(role)) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN, "A valid customer identity is required");
+        }
+        return id.longValue();
     }
 }

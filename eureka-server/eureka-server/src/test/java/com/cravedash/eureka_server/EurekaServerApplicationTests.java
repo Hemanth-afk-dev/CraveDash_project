@@ -1,4 +1,4 @@
-package com.cravedash.eureka_server;
+package com.cravedash.eurekaserver;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

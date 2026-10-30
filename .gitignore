@@ -4,12 +4,28 @@
 .project
 .settings/
 
+# IntelliJ IDEA
+.idea/
+*.iml
+
+# VS Code user state
+.vscode/
+
+# Local validation tool state
+.tsupgrader/
+
 # Maven
 target/
-*/target/
+**/target/
 
 # ZIP backups
 *.zip
+
+# Node.js and frontend build outputs
+node_modules/
+**/node_modules/
+dist/
+**/dist/
 
 # Logs
 *.log
@@ -20,3 +36,6 @@ Thumbs.db
 
 # Environment / secrets
 .env
+.env.*
+!.env.example
+!**/.env.example

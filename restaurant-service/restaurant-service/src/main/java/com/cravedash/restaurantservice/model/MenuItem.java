@@ -1,6 +1,8 @@
 package com.cravedash.restaurantservice.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
 
 @Entity
 @Table(name = "menu_items")
@@ -12,13 +14,17 @@ public class MenuItem {
 
     private Long restaurantId;
 
+    @NotBlank
     private String name;
 
     private String description;
 
+    @DecimalMin("0.01")
     private double price;
 
     private boolean available;
+
+    private String imageUrl;
 
     public Long getId() {
         return id;
@@ -66,5 +72,13 @@ public class MenuItem {
 
     public void setAvailable(boolean available) {
         this.available = available;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 }

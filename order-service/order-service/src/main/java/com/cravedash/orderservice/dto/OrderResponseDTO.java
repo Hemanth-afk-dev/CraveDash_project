@@ -1,6 +1,7 @@
 package com.cravedash.orderservice.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class OrderResponseDTO {
 
@@ -15,6 +16,8 @@ public class OrderResponseDTO {
     private String status;
 
     private LocalDateTime createdAt;
+
+    private List<OrderItemResponseDTO> items;
 
     public Long getOrderId() {
         return orderId;
@@ -62,5 +65,13 @@ public class OrderResponseDTO {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public List<OrderItemResponseDTO> getItems() {
+        return items;
+    }
+
+    public void setItems(List<OrderItemResponseDTO> items) {
+        this.items = items;
     }
 }

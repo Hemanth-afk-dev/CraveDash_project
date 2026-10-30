@@ -9,6 +9,8 @@ import com.cravedash.restaurantservice.repository.MenuItemRepository;
 import com.cravedash.restaurantservice.repository.RestaurantRepository;
 
 import org.springframework.stereotype.Service;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -35,7 +37,8 @@ public class RestaurantService {
     public RestaurantResponseDTO getRestaurantById(Long id) {
 
         Restaurant restaurant = restaurantRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Restaurant not found"));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Restaurant not found"));
 
         return convertToRestaurantDTO(restaurant);
     }
@@ -48,6 +51,9 @@ public class RestaurantService {
     }
 
     public List<MenuItemDTO> getMenuByRestaurant(Long restaurantId) {
+        if (!restaurantRepository.existsById(restaurantId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Restaurant not found");
+        }
 
         return menuItemRepository.findByRestaurantId(restaurantId)
                 .stream()
@@ -56,6 +62,13 @@ public class RestaurantService {
     }
 
     public MenuItemDTO addMenuItem(Long restaurantId, MenuItem menuItem) {
+        Restaurant restaurant = restaurantRepository.findById(restaurantId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Restaurant not found"));
+        if (menuItem.getName().trim().equalsIgnoreCase(restaurant.getName().trim())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT, "A menu item cannot duplicate the restaurant name");
+        }
 
         menuItem.setRestaurantId(restaurantId);
 
@@ -67,7 +80,8 @@ public class RestaurantService {
     public RestaurantAvailabilityDTO checkAvailability(Long restaurantId) {
 
         Restaurant restaurant = restaurantRepository.findById(restaurantId)
-                .orElseThrow(() -> new RuntimeException("Restaurant not found"));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Restaurant not found"));
 
         RestaurantAvailabilityDTO dto = new RestaurantAvailabilityDTO();
 
@@ -86,7 +100,7 @@ public class RestaurantService {
         dto.setAddress(restaurant.getAddress());
         dto.setPhone(restaurant.getPhone());
         dto.setAvailable(restaurant.isAvailable());
-
+        dto.setImageUrl(restaurant.getImageUrl());
         return dto;
     }
 
@@ -100,7 +114,7 @@ public class RestaurantService {
         dto.setDescription(menuItem.getDescription());
         dto.setPrice(menuItem.getPrice());
         dto.setAvailable(menuItem.isAvailable());
-
+        dto.setImageUrl(menuItem.getImageUrl());
         return dto;
     }
 }

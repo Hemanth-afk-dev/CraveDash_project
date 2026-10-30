@@ -1,6 +1,7 @@
 package com.cravedash.restaurantservice.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 
 @Entity
 @Table(name = "restaurants")
@@ -10,13 +11,18 @@ public class Restaurant {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank
     private String name;
 
+    @NotBlank
     private String address;
 
+    @NotBlank
     private String phone;
 
     private boolean available;
+
+    private String imageUrl;
 
     public Long getId() {
         return id;
@@ -56,5 +62,13 @@ public class Restaurant {
 
     public void setAvailable(boolean available) {
         this.available = available;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 }

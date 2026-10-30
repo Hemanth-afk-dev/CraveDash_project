@@ -8,6 +8,7 @@ import com.cravedash.restaurantservice.model.Restaurant;
 import com.cravedash.restaurantservice.service.RestaurantService;
 
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import java.util.List;
 
@@ -33,7 +34,7 @@ public class RestaurantController {
 
     @PostMapping
     public RestaurantResponseDTO createRestaurant(
-            @RequestBody Restaurant restaurant) {
+            @Valid @RequestBody Restaurant restaurant) {
         return restaurantService.createRestaurant(restaurant);
     }
 
@@ -45,7 +46,7 @@ public class RestaurantController {
     @PostMapping("/{id}/menu")
     public MenuItemDTO addMenuItem(
             @PathVariable Long id,
-            @RequestBody MenuItem menuItem) {
+            @Valid @RequestBody MenuItem menuItem) {
 
         return restaurantService.addMenuItem(id, menuItem);
     }

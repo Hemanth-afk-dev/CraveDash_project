@@ -15,6 +15,9 @@ public class Order {
 
     private Long userId;
 
+    @Column(name = "customer_id")
+    private Long customerId;
+
     private Long restaurantId;
 
     private double totalAmount;
@@ -22,6 +25,9 @@ public class Order {
     private String status;
 
     private LocalDateTime createdAt;
+
+    @Column(name = "idempotency_key", length = 64, unique = true)
+    private String idempotencyKey;
 
     @OneToMany(cascade = CascadeType.ALL)
     @JoinColumn(name = "order_id")
@@ -41,6 +47,14 @@ public class Order {
 
     public void setUserId(Long userId) {
         this.userId = userId;
+    }
+
+    public Long getCustomerId() {
+        return customerId;
+    }
+
+    public void setCustomerId(Long customerId) {
+        this.customerId = customerId;
     }
 
     public Long getRestaurantId() {
@@ -73,6 +87,14 @@ public class Order {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
+
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
     }
 
     public List<OrderItem> getItems() {

@@ -8,6 +8,7 @@ public class MenuItemDTO {
     private String description;
     private double price;
     private boolean available;
+    private String imageUrl;
 
     public Long getId() {
         return id;
@@ -55,5 +56,13 @@ public class MenuItemDTO {
 
     public void setAvailable(boolean available) {
         this.available = available;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 }

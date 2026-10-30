@@ -5,7 +5,9 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "payments")
+@Table(name = "payments", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_payment_order_id", columnNames = "order_id")
+})
 public class Payment {
 
     @Id
@@ -15,6 +17,9 @@ public class Payment {
     private Long orderId;
 
     private Long userId;
+
+    @Column(name = "customer_id")
+    private Long customerId;
 
     private double amount;
 
@@ -46,6 +51,14 @@ public class Payment {
 
     public void setUserId(Long userId) {
         this.userId = userId;
+    }
+
+    public Long getCustomerId() {
+        return customerId;
+    }
+
+    public void setCustomerId(Long customerId) {
+        this.customerId = customerId;
     }
 
     public double getAmount() {

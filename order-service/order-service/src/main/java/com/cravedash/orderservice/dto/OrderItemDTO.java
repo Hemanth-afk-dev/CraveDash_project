@@ -1,11 +1,17 @@
 package com.cravedash.orderservice.dto;
 
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+
 public class OrderItemDTO {
 
+    @NotNull
+    @Positive
     private Long menuItemId;
 
     private String itemName;
 
+    @Positive
     private int quantity;
 
     private double price;
